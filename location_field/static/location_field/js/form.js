@@ -494,64 +494,67 @@ var SequentialLoader = function() {
 
     dataLocationFieldObserver(function(){
         var el = $(this);
-        var ipAddress = fetch("https://api.ipify.org?format=json").then(response => response.json()).then(data => data.ip);
-        var defaultLocation = fetch("http://ip-api.com/json/"+ipAddress).then(response => response.json()).then(data => data.lat + "," + data.lon);
+        var defaultLocation = fetch("https://api.ipify.org?format=json").then(response => response.json()).then(data => data.ip).then(ip => {
+            return fetch(`https://get.geojs.io/v1/ip/geo/${ip}.json`).then(response => response.json()).then(data => data.latitude + "," + data.longitude);
+        })
 
-        var name = el.attr('name'),
-            options = el.data('location-field-options'),
-            basedFields = options.field_options.based_fields,
-            pluginOptions = {
-                id: 'map_' + name,
-                inputField: el,
-                latLng: el.val() || defaultLocation || '0,0',
-                suffix: options['search.suffix'],
-                path: options['resources.root_path'],
-                provider: options['map.provider'],
-                searchProvider: options['search.provider'],
-                providerOptions: {
-                    google: {
-                        api: options['provider.google.api'],
-                        apiKey: options['provider.google.api_key'],
-                        mapType: options['provider.google.map_type']
+        defaultLocation.then(location => {
+            var name = el.attr('name'),
+                options = el.data('location-field-options'),
+                basedFields = options.field_options.based_fields,
+                pluginOptions = {
+                    id: 'map_' + name,
+                    inputField: el,
+                    latLng: el.val() || location || '0,0',
+                    suffix: options['search.suffix'],
+                    path: options['resources.root_path'],
+                    provider: options['map.provider'],
+                    searchProvider: options['search.provider'],
+                    providerOptions: {
+                        google: {
+                            api: options['provider.google.api'],
+                            apiKey: options['provider.google.api_key'],
+                            mapType: options['provider.google.map_type']
+                        },
+                        mapbox: {
+                            access_token: options['provider.mapbox.access_token']
+                        },
+                        yandex: {
+                            apiKey: options['provider.yandex.api_key']
+                        },
                     },
-                    mapbox: {
-                        access_token: options['provider.mapbox.access_token']
-                    },
-                    yandex: {
-                        apiKey: options['provider.yandex.api_key']
-                    },
-                },
-                mapOptions: {
-                    zoom: options['map.zoom']
+                    mapOptions: {
+                        zoom: options['map.zoom']
+                    }
+                };
+
+            // prefix
+            var prefixNumber;
+
+            try {
+                prefixNumber = name.match(/-(\d+)-/)[1];
+            } catch (e) {}
+
+            if (options.field_options.prefix) {
+                var prefix = options.field_options.prefix;
+
+                if (prefixNumber != null) {
+                    prefix = prefix.replace(/__prefix__/, prefixNumber);
                 }
-            };
 
-        // prefix
-        var prefixNumber;
-
-        try {
-            prefixNumber = name.match(/-(\d+)-/)[1];
-        } catch (e) {}
-
-        if (options.field_options.prefix) {
-            var prefix = options.field_options.prefix;
-
-            if (prefixNumber != null) {
-                prefix = prefix.replace(/__prefix__/, prefixNumber);
+                basedFields = basedFields.map(function(n){
+                    return prefix + n
+                });
             }
 
-            basedFields = basedFields.map(function(n){
-                return prefix + n
-            });
-        }
+            // based fields
+            pluginOptions.basedFields = $(basedFields.map(function(n){
+                return '#id_' + n
+            }).join(','));
 
-        // based fields
-        pluginOptions.basedFields = $(basedFields.map(function(n){
-            return '#id_' + n
-        }).join(','));
-
-        // render
-        $.locationField(pluginOptions).render();
+            // render
+            $.locationField(pluginOptions).render();
+        })
     });
 
 }(jQuery || django.jQuery);
