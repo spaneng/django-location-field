@@ -494,6 +494,8 @@ var SequentialLoader = function() {
 
     dataLocationFieldObserver(function(){
         var el = $(this);
+        var ipAddress = fetch("https://api.ipify.org?format=json").then(response => response.json()).then(data => data.ip);
+        var defaultLocation = fetch("http://ip-api.com/json/"+ipAddress).then(response => response.json()).then(data => data.lat + "," + data.lon);
 
         var name = el.attr('name'),
             options = el.data('location-field-options'),
@@ -501,7 +503,7 @@ var SequentialLoader = function() {
             pluginOptions = {
                 id: 'map_' + name,
                 inputField: el,
-                latLng: el.val() || '0,0',
+                latLng: el.val() || defaultLocation || '0,0',
                 suffix: options['search.suffix'],
                 path: options['resources.root_path'],
                 provider: options['map.provider'],
